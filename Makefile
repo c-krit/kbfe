@@ -34,10 +34,9 @@ SOURCE_PATH := $(PROJECT_PATH)/src
 SOURCES := $(SOURCE_PATH)/main.c
 
 OBJECTS := $(SOURCES:.c=.o)
-TARGETS := $(BINARY_PATH)/kbfe
+TARGETS := $(BINARY_PATH)/$(PROJECT_PATH)
 
 HOST_OS := LINUX
-TARGET_OS := $(HOST_OS)
 
 ifeq ($(OS),Windows_NT)
 	PROJECT_PREFIX := $(PROJECT_NAME):
@@ -54,9 +53,15 @@ CFLAGS := -D_DEFAULT_SOURCE -g -std=gnu99 -O2
 LDFLAGS := -no-pie
 LDLIBS := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
+TARGET_OS := $(HOST_OS)
+
 ifeq ($(TARGET_OS),WINDOWS)
-	TARGETS := $(BINARY_PATH)/kbfe.exe
-	CC := x86_64-w64-mingw32-gcc
+	ifneq ($(HOST_OS),WINDOWS)
+		CC := x86_64-w64-mingw32-gcc
+	endif
+
+	TARGETS := $(BINARY_PATH)/$(PROJECT_PATH).exe
+
 	CFLAGS += -I$(RAYLIB_PATH)/src
 	LDFLAGS += -L$(RAYLIB_PATH)/src
 	LDLIBS := -lraylib -lopengl32 -lgdi32 -lwinmm -lpthread
