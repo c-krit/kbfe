@@ -22,49 +22,73 @@
 
 .PHONY: all clean
 
-PROJECT_NAME := c-krit/kbfe
-PROJECT_PATH := kbfe
-PROJECT_PREFIX := $(shell tput setaf 2)$(PROJECT_NAME):$(shell tput sgr0)
+_COLOR_BEGIN := $(shell tput setaf 8)
+_COLOR_END := $(shell tput sgr0)
 
 RAYLIB_PATH ?= ../raylib
 
-BINARY_PATH := $(PROJECT_PATH)/bin
-SOURCE_PATH := $(PROJECT_PATH)/src
-    
-SOURCES := $(SOURCE_PATH)/main.c
+PROJECT_NAME := kbfe
+PROJECT_FULL_NAME := c-krit/kbfe
 
+PROJECT_PATH := $(PROJECT_NAME)
+PROJECT_PREFIX := $(_COLOR_BEGIN)$(PROJECT_FULL_NAME):$(_COLOR_END)
+
+BINARY_PATH := $(PROJECT_PATH)/bin
+
+INCLUDE_PATH := \
+	$(PROJECT_PATH)/include \
+	$(RAYLIB_PATH)/src
+
+LIBRARY_PATH := \
+	$(PROJECT_PATH)/lib \
+	$(RAYLIB_PATH)/src
+
+RESOURCE_PATH := $(PROJECT_PATH)/res
+SOURCE_PATH := $(PROJECT_PATH)/src
+
+INCLUDE_PATH += $(SOURCE_PATH)/external
+
+SOURCES := $(SOURCE_PATH)/main.c
 OBJECTS := $(SOURCES:.c=.o)
+
 TARGETS := $(BINARY_PATH)/$(PROJECT_PATH)
 
-HOST_OS := LINUX
+HOST_PLATFORM := LINUX
 
 ifeq ($(OS),Windows_NT)
 	PROJECT_PREFIX := $(PROJECT_NAME):
-	HOST_OS := WINDOWS
+	HOST_PLATFORM := WINDOWS
 else
 	UNAME = $(shell uname)
+
 	ifeq ($(UNAME),Linux)
-		HOST_OS = LINUX
+		HOST_PLATFORM = LINUX
 	endif
 endif
 
 CC := gcc
-CFLAGS := -D_DEFAULT_SOURCE -g -std=gnu99 -O2
-LDFLAGS := -no-pie
+CFLAGS := -D_DEFAULT_SOURCE -g $(INCLUDE_PATH:%=-I%) -O2 -std=gnu99 -Wno-unused-command-line-argument
+LDFLAGS := $(LIBRARY_PATH:%=-L%)
 LDLIBS := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
-TARGET_OS := $(HOST_OS)
+PLATFORM := $(HOST_PLATFORM)
 
-ifeq ($(TARGET_OS),WINDOWS)
-	ifneq ($(HOST_OS),WINDOWS)
+ifeq ($(PLATFORM),WINDOWS)
+	TARGETS := $(BINARY_PATH)/$(PROJECT_PATH).exe
+
+	ifneq ($(HOST_PLATFORM),WINDOWS)
 		CC := x86_64-w64-mingw32-gcc
 	endif
 
-	TARGETS := $(BINARY_PATH)/$(PROJECT_PATH).exe
-
-	CFLAGS += -I$(RAYLIB_PATH)/src
-	LDFLAGS += -L$(RAYLIB_PATH)/src
 	LDLIBS := -lraylib -lopengl32 -lgdi32 -lwinmm -lpthread
+else ifeq ($(PLATFORM),WEB)
+	TARGETS := $(BINARY_PATH)/$(PROJECT_PATH).html
+
+	CC := emcc
+
+# https://github.com/emscripten-core/emscripten/blob/main/src/settings.js
+	WEBFLAGS := -s ASYNCIFY -s FORCE_FILESYSTEM -s INITIAL_MEMORY=67108864 -s USE_GLFW=3
+	WEBFLAGS += --preload-file $(RESOURCE_PATH) --shell-file $(RESOURCE_PATH)/html/shell.html
 endif
 
 all: pre-build build post-build
@@ -81,7 +105,7 @@ $(SOURCE_PATH)/%.o: $(SOURCE_PATH)/%.c
 $(TARGETS): $(OBJECTS)
 	@mkdir -p $(BINARY_PATH)
 	@echo "$(PROJECT_PREFIX) Linking: $(TARGETS)"
-	@$(CC) $(OBJECTS) -o $(TARGETS) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
+	@$(CC) $(OBJECTS) -o $(TARGETS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(WEBFLAGS)
     
 post-build:
 	@echo "$(PROJECT_PREFIX) Build complete."
